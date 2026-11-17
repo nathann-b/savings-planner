@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>457 and Roth Savings Planner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* Layout: controls rail on the left, results (summary tiles → totals → charts) on the right; stacks on phones. */
+  --bg:#f3f6f7; --surface:#ffffff; --ink:#12232b; --muted:#5a6d76; --line:#d9e3e7; --accent:#0a6e8a;
+  --s457:#0a6e8a; --sroth:#4f6fd8; --scash:#c98a1c; --warn:#b93c12; --good:#1d7a45;
+  --display:"Manrope", "Segoe UI", system-ui, sans-serif;
+  --body:"IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0c161b; --surface:#13222a; --ink:#e4edf0; --muted:#93a8b1; --line:#24373f; --accent:#4cb4d1;
+    --s457:#4cb4d1; --sroth:#8ea9ff; --scash:#e8b04d; --warn:#ff8a5c; --good:#5cc98a;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0c161b; --surface:#13222a; --ink:#e4edf0; --muted:#93a8b1; --line:#24373f; --accent:#4cb4d1;
+  --s457:#4cb4d1; --sroth:#8ea9ff; --scash:#e8b04d; --warn:#ff8a5c; --good:#5cc98a;
+  color-scheme: dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5}
+.wrap{max-width:1180px;margin:0 auto;padding:28px 20px 48px}
+header h1{font-family:var(--display);font-weight:800;font-size:28px;letter-spacing:-.01em;margin:0 0 4px;text-wrap:balance}
+header p{margin:0;color:var(--muted);max-width:68ch}
+.grid{display:grid;grid-template-columns:340px 1fr;gap:20px;margin-top:22px;align-items:start}
+@media (max-width:900px){.grid{grid-template-columns:1fr}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px}
+.controls{position:sticky;top:16px;display:flex;flex-direction:column;gap:14px}
+@media (max-width:900px){.controls{position:static}}
+.controls h2,.section h2{font-family:var(--display);font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0}
+.group{display:flex;flex-direction:column;gap:12px;padding-top:12px;border-top:1px solid var(--line)}
+.group:first-of-type{border-top:0;padding-top:0}
+.ctl{display:flex;flex-direction:column;gap:4px}
+.ctl .row{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.ctl label{font-weight:500;font-size:14px}
+.ctl .hint{font-size:12px;color:var(--muted)}
+.ctl input[type=number]{width:96px;font:inherit;font-variant-numeric:tabular-nums;text-align:right;padding:3px 6px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink)}
+input[type=range]{width:100%;accent-color:var(--accent);cursor:pointer}
+input:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button.reset{font:inherit;font-weight:600;font-size:13px;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:8px;padding:8px 12px;cursor:pointer;align-self:flex-start}
+button.reset:hover{border-color:var(--accent);color:var(--accent)}
+.results{display:flex;flex-direction:column;gap:20px;min-width:0}
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+@media (max-width:1100px){.tiles{grid-template-columns:repeat(2,1fr)}}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;border-left:4px solid var(--line)}
+.tile .k{font-size:12.5px;color:var(--muted);line-height:1.3}
+.tile .v{font-family:var(--display);font-weight:800;font-size:24px;font-variant-numeric:tabular-nums;margin-top:4px}
+.tile .s{font-size:12px;color:var(--muted)}
+.tile.ok{border-left-color:var(--good)}
+.tile.bad{border-left-color:var(--warn)}
+.tile.bad .v{color:var(--warn)}
+.tile.neutral{border-left-color:var(--accent)}
+.section{display:flex;flex-direction:column;gap:12px}
+.section .head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+.section .big{font-family:var(--display);font-weight:800;font-size:34px;font-variant-numeric:tabular-nums;line-height:1.1}
+.section .sub{color:var(--muted);font-size:13.5px}
+.breakdown{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+@media (max-width:600px){.breakdown{grid-template-columns:repeat(2,1fr)}}
+.b{padding:10px 12px;border-radius:10px;background:var(--bg)}
+.b .k{font-size:12.5px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.b .k i{width:10px;height:10px;border-radius:3px;display:inline-block}
+.b .v{font-weight:600;font-size:18px;font-variant-numeric:tabular-nums}
+.chartbox{position:relative;height:280px}
+.warnbar{display:none;padding:10px 12px;border-radius:8px;border:1px solid var(--warn);color:var(--warn);font-size:13.5px}
+.warnbar.show{display:block}
+.notes{font-size:12.5px;color:var(--muted)}
+.notes ul{margin:6px 0 0;padding-left:18px}
+.notes li{margin:2px 0}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>457 and Roth Savings Planner</h1>
+    <p>Change how long you live at home, how long you stay at CCWA, what you contribute, and what rent costs after you move out. Everything recalculates as you go.</p>
+  </header>
+
+  <div class="grid">
+    <aside class="panel controls" aria-label="Inputs">
+      <div class="group">
+        <h2>Time</h2>
+        <div class="ctl">
+          <div class="row"><label for="years">Years working at CCWA</label><input type="number" id="years-n" min="0.5" max="15" step="0.5" aria-label="Years working at CCWA"></div>
+          <input type="range" id="years" min="0.5" max="15" step="0.5">
+        </div>
+        <div class="ctl">
+          <div class="row"><label for="home">Months living at home</label><input type="number" id="home-n" min="0" max="180" step="1" aria-label="Months living at home"></div>
+          <input type="range" id="home" min="0" max="72" step="1">
+          <span class="hint" id="home-hint"></span>
+        </div>
+      </div>
+
+      <div class="group">
+        <h2>Retirement contributions</h2>
+        <div class="ctl">
+          <div class="row"><label for="k457">457(b) per year while at home</label><input type="number" id="k457-n" min="0" max="24500" step="250" aria-label="457(b) per year while at home"></div>
+          <input type="range" id="k457" min="0" max="24500" step="250">
+          <span class="hint" id="k457-hint"></span>
+        </div>
+        <div class="ctl">
+          <div class="row"><label for="k457b">457(b) per year after moving out</label><input type="number" id="k457b-n" min="0" max="24500" step="250" aria-label="457(b) per year after moving out"></div>
+          <input type="range" id="k457b" min="0" max="24500" step="250">
+          <span class="hint" id="k457b-hint"></span>
+        </div>
+        <div class="ctl">
+          <div class="row"><label for="roth">Roth IRA per year</label><input type="number" id="roth-n" min="0" max="7500" step="250" aria-label="Roth IRA per year"></div>
+          <input type="range" id="roth" min="0" max="7500" step="250">
+          <span class="hint" id="roth-hint"></span>
+        </div>
+      </div>
+
+      <div class="group">
+        <h2>Spending</h2>
+        <div class="ctl">
+          <div class="row"><label for="rent">Rent per month (after moving out)</label><input type="number" id="rent-n" min="0" max="3000" step="25" aria-label="Rent per month"></div>
+          <input type="range" id="rent" min="500" max="3000" step="25">
+        </div>
+        <div class="ctl">
+          <div class="row"><label for="other">Other bills per month (after moving out)</label><input type="number" id="other-n" min="0" max="3000" step="25" aria-label="Other bills per month"></div>
+          <input type="range" id="other" min="0" max="2000" step="25">
+          <span class="hint">Utilities, internet, groceries, renters and car insurance</span>
+        </div>
+        <div class="ctl">
+          <div class="row"><label for="fun">Gas and fun money per month</label><input type="number" id="fun-n" min="0" max="3000" step="25" aria-label="Gas and fun money per month"></div>
+          <input type="range" id="fun" min="0" max="2000" step="25">
+          <span class="hint">Applies at home and after moving out</span>
+        </div>
+      </div>
+
+      <div class="group">
+        <h2>Pay and growth</h2>
+        <div class="ctl">
+          <div class="row"><label for="salary">Salary (before tax)</label><input type="number" id="salary-n" min="30000" max="200000" step="1000" aria-label="Salary"></div>
+          <input type="range" id="salary" min="40000" max="150000" step="1000">
+        </div>
+        <div class="ctl">
+          <div class="row"><label for="ret">Average investment return</label><input type="number" id="ret-n" min="0" max="12" step="0.5" aria-label="Average investment return percent"></div>
+          <input type="range" id="ret" min="0" max="12" step="0.5">
+          <span class="hint">Percent per year. 7% is a common long-run stock-market assumption.</span>
+        </div>
+        <div class="ctl">
+          <div class="row"><label for="after">Years left invested after you leave</label><input type="number" id="after-n" min="0" max="45" step="1" aria-label="Years left invested after you leave"></div>
+          <input type="range" id="after" min="0" max="45" step="1">
+        </div>
+        <div class="ctl">
+          <div class="row"><label for="cashr">Savings account interest</label><input type="number" id="cashr-n" min="0" max="6" step="0.25" aria-label="Savings account interest percent"></div>
+          <input type="range" id="cashr" min="0" max="6" step="0.25">
+        </div>
+      </div>
+      <button class="reset" id="reset" type="button">Reset to my plan</button>
+    </aside>
+
+    <main class="results">
+      <div class="tiles">
+        <div class="tile neutral"><div class="k">Take-home per month at home</div><div class="v" id="t-take"></div><div class="s" id="t-take-s">after 457, taxes, health insurance</div></div>
+        <div class="tile" id="tile-home"><div class="k">Left over per month at home</div><div class="v" id="t-home"></div><div class="s">after Roth and spending</div></div>
+        <div class="tile" id="tile-away"><div class="k">Left over per month after moving out</div><div class="v" id="t-away"></div><div class="s" id="t-away-s">after Roth, rent, bills, spending</div></div>
+        <div class="tile neutral"><div class="k">Taxes saved by the 457(b) at home</div><div class="v" id="t-tax"></div><div class="s" id="t-tax-s">per year, federal + Georgia</div></div>
+      </div>
+
+      <div class="warnbar" id="warn"></div>
+
+      <section class="panel section" aria-labelledby="h-leave">
+        <div class="head">
+          <h2 id="h-leave">When you leave CCWA</h2>
+          <span class="sub" id="leave-sub"></span>
+        </div>
+        <div class="big" id="leave-total"></div>
+        <div class="breakdown">
+          <div class="b"><div class="k"><i style="background:var(--s457)"></i>457(b)</div><div class="v" id="l-457"></div></div>
+          <div class="b"><div class="k"><i style="background:var(--sroth)"></i>Roth IRA</div><div class="v" id="l-roth"></div></div>
+          <div class="b"><div class="k"><i style="background:var(--scash)"></i>Cash savings</div><div class="v" id="l-cash"></div></div>
+          <div class="b"><div class="k">You put into retirement</div><div class="v" id="l-contrib"></div></div>
+        </div>
+        <div class="chartbox"><canvas id="c-work" aria-label="Balances while working at CCWA"></canvas></div>
+      </section>
+
+      <section class="panel section" aria-labelledby="h-future">
+        <div class="head">
+          <h2 id="h-future">Retirement accounts later</h2>
+          <span class="sub" id="future-sub"></span>
+        </div>
+        <div class="big" id="future-total"></div>
+        <div class="breakdown">
+          <div class="b"><div class="k"><i style="background:var(--s457)"></i>457(b)</div><div class="v" id="f-457"></div></div>
+          <div class="b"><div class="k"><i style="background:var(--sroth)"></i>Roth IRA (tax-free)</div><div class="v" id="f-roth"></div></div>
+          <div class="b"><div class="k">In today's dollars</div><div class="v" id="f-real"></div></div>
+          <div class="b"><div class="k">Growth multiple</div><div class="v" id="f-mult"></div></div>
+        </div>
+        <div class="chartbox"><canvas id="c-future" aria-label="Retirement account growth after leaving"></canvas></div>
+        <div class="sub">This assumes you stop contributing when you leave and never withdraw. Cash savings aren't projected here, since you'll likely spend them on a move, a car or a down payment.</div>
+      </section>
+
+      <div class="notes">
+        <strong>How this is calculated</strong>
+        <ul>
+          <li>2026 federal brackets for a single filer ($16,100 standard deduction), Georgia's flat 4.99% tax ($15,000 standard deduction), and 7.65% Social Security and Medicare.</li>
+          <li>Health insurance is the employee-only Kaiser HMO at $46.55 per paycheck (26 paychecks), taken out pre-tax.</li>
+          <li>The 457(b) is pre-tax and the Roth IRA comes from take-home pay. Contributions go in monthly; returns compound monthly.</li>
+          <li>Salary and contribution limits stay flat (no raises, no limit increases). A CCWA pension contribution, if there is one, isn't included.</li>
+          <li>"In today's dollars" assumes 2.5% yearly inflation. Real returns vary a lot from year to year. This is an estimate, not financial advice.</li>
+        </ul>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
+<script>
+(function(){
+  const DEFAULTS = {years:3, home:18, k457:24500, k457b:12250, roth:7500, rent:1200, other:800, fun:500, salary:80000, ret:7, after:30, cashr:0};
+  const KEYS = Object.keys(DEFAULTS);
+  const STORE = "ccwa-savings-planner-v2";
+  let state = Object.assign({}, DEFAULTS);
+  try { const s = JSON.parse(localStorage.getItem(STORE) || "null"); if (s) KEYS.forEach(k => { if (typeof s[k] === "number" && isFinite(s[k])) state[k] = s[k]; }); } catch(e) {}
+
+  const HEALTH = 46.55 * 26, FED_STD = 16100, GA_STD = 15000, GA_RATE = 0.0499, FICA = 0.0765, INFL = 0.025;
+  const BRACKETS = [[12400,.10],[50400,.12],[105700,.22],[201775,.24],[256225,.32],[640600,.35],[Infinity,.37]];
+
+  const usd = n => (n < 0 ? "−$" : "$") + Math.round(Math.abs(n)).toLocaleString("en-US");
+  const short = n => { const a = Math.abs(n), sign = n < 0 ? "−" : ""; if (a >= 1e6) return sign + "$" + (a/1e6).toFixed(a >= 1e7 ? 1 : 2) + "M"; if (a >= 1e3) return sign + "$" + Math.round(a/1e3) + "k"; return sign + "$" + Math.round(a); };
+  const months = m => { const y = Math.floor(m/12), r = m % 12; const parts = []; if (y) parts.push(y + (y === 1 ? " year" : " years")); if (r) parts.push(r + (r === 1 ? " month" : " months")); return parts.join(" ") || "0 months"; };
+
+  function fedTax(taxable){ let t = 0, prev = 0; for (const [top, r] of BRACKETS){ if (taxable > prev) t += (Math.min(taxable, top) - prev) * r; prev = top; } return t; }
+  function taxes(salary, pre457){
+    const base = Math.max(0, salary - pre457 - HEALTH);
+    return { fed: fedTax(Math.max(0, base - FED_STD)), ga: Math.max(0, base - GA_STD) * GA_RATE, fica: Math.max(0, salary - HEALTH) * FICA };
+  }
+
+  function phase(salary, k){
+    const kk = Math.min(k, Math.max(0, salary - HEALTH));
+    const t = taxes(salary, kk), t0 = taxes(salary, 0);
+    return { k: kk, take: salary - kk - HEALTH - t.fed - t.ga - t.fica, saved: (t0.fed + t0.ga) - (t.fed + t.ga) };
+  }
+  function calc(p){
+    const ph = phase(p.salary, p.k457), pa = phase(p.salary, p.k457b);
+    const k457 = ph.k, take = ph.take, taxSaved = ph.saved;
+    const spendHome = p.fun, spendAway = p.rent + p.other + p.fun;
+    const N = Math.round(p.years * 12), H = Math.min(p.home, N);
+    const leftHomeM = (ph.take - p.roth) / 12, leftAwayM = (pa.take - p.roth) / 12;
+    const r = p.ret / 100 / 12, cr = p.cashr / 100 / 12;
+    let a = 0, b = 0, c = 0;
+    const s457 = [0], sroth = [0], scash = [0];
+    for (let m = 0; m < N; m++){
+      const home = m < H;
+      a = a * (1 + r) + (home ? ph.k : pa.k) / 12;
+      b = b * (1 + r) + p.roth / 12;
+      c = c * (1 + cr) + (home ? leftHomeM - spendHome : leftAwayM - spendAway);
+      s457.push(a); sroth.push(b); scash.push(c);
+    }
+    const fa = [a], fb = [b];
+    let x = a, y = b;
+    for (let yr = 1; yr <= p.after; yr++){ for (let m = 0; m < 12; m++){ x *= (1 + r); y *= (1 + r); } fa.push(x); fb.push(y); }
+    const fut = x + y;
+    const real = fut / Math.pow(1 + INFL, p.years + p.after);
+    return { k457, k457b: pa.k, take, takeAway: pa.take, taxSaved, taxSavedAway: pa.saved, leftHome: leftHomeM - spendHome, leftAway: leftAwayM - spendAway, N, H,
+      l457: a, lroth: b, lcash: c, contrib: (ph.k * H + pa.k * (N - H)) / 12 + p.roth * N / 12, s457, sroth, scash, fa, fb, f457: x, froth: y, fut, real };
+  }
+
+  // ---------- controls ----------
+  function bind(){
+    KEYS.forEach(k => {
+      const r = document.getElementById(k), n = document.getElementById(k + "-n");
+      const set = v => { v = Number(v); if (!isFinite(v)) return; const lo = Number(n.min), hi = Number(n.max); state[k] = Math.min(hi, Math.max(lo, v)); render(); };
+      r.addEventListener("input", () => set(r.value));
+      n.addEventListener("change", () => set(n.value));
+      n.addEventListener("input", () => { if (n.value !== "") set(n.value); });
+    });
+    document.getElementById("reset").addEventListener("click", () => { state = Object.assign({}, DEFAULTS); render(); });
+  }
+  function syncControls(){
+    KEYS.forEach(k => {
+      const r = document.getElementById(k), n = document.getElementById(k + "-n");
+      if (document.activeElement !== n) n.value = state[k];
+      if (Number(r.max) < state[k]) r.max = state[k];
+      r.value = state[k];
+    });
+  }
+
+  // ---------- charts ----------
+  let chWork = null, chFuture = null;
+  const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+  function alpha(hex, a){ const h = hex.replace("#",""); const n = parseInt(h.length === 3 ? h.split("").map(z => z + z).join("") : h, 16); return `rgba(${n>>16&255},${n>>8&255},${n&255},${a})`; }
+
+  const moveOutLine = {
+    id: "moveOut",
+    afterDatasetsDraw(chart, args, opts){
+      if (opts.index == null || opts.index <= 0 || opts.index >= chart.data.labels.length - 1) return;
+      const { ctx, chartArea:{top, bottom}, scales:{x} } = chart;
+      const px = x.getPixelForValue(opts.index);
+      ctx.save(); ctx.strokeStyle = opts.color; ctx.setLineDash([4,4]); ctx.lineWidth = 1.25;
+      ctx.beginPath(); ctx.moveTo(px, top); ctx.lineTo(px, bottom); ctx.stroke();
+      ctx.setLineDash([]); ctx.fillStyle = opts.color; ctx.font = "600 11px " + css("--body");
+      ctx.textAlign = px > (chart.chartArea.left + chart.chartArea.right) / 2 ? "right" : "left";
+      ctx.fillText("Move out", px + (ctx.textAlign === "left" ? 6 : -6), top + 12); ctx.restore();
+    }
+  };
+
+  function baseOpts(){
+    const ink = css("--muted"), grid = alpha(css("--muted").startsWith("#") ? css("--muted") : "#888888", 0.15);
+    return {
+      responsive:true, maintainAspectRatio:false, animation:false,
+      interaction:{mode:"index", intersect:false},
+      plugins:{
+        legend:{position:"bottom", labels:{color:ink, boxWidth:12, boxHeight:12, font:{family:css("--body")}}},
+        tooltip:{callbacks:{label: c => " " + c.dataset.label + ": " + usd(c.parsed.y)}}
+      },
+      scales:{
+        x:{grid:{display:false}, ticks:{color:ink, autoSkip:true, maxTicksLimit:10, maxRotation:0, font:{family:css("--body")}}},
+        y:{grid:{color:grid}, border:{display:false}, ticks:{color:ink, callback: v => short(v), font:{family:css("--body")}}}
+      }
+    };
+  }
+
+  function drawCharts(res){
+    if (typeof Chart === "undefined") return;
+    const c457 = css("--s457"), croth = css("--sroth"), ccash = css("--scash");
+    const lblW = res.s457.map((_, i) => i % 12 === 0 ? "Year " + (i/12) : (i === res.N ? months(i) : months(i)));
+    const ds = (label, data, color, stack) => ({label, data, borderColor:color, backgroundColor:alpha(color, .28), fill: stack ? "stack" : "origin", stack: stack ? "s" : undefined, pointRadius:0, borderWidth:2, tension:.25});
+
+    const wOpts = baseOpts();
+    wOpts.scales.y.stacked = true;
+    wOpts.scales.x.ticks.callback = function(v, i){ return i % 12 === 0 ? "Yr " + (i/12) : null; };
+    wOpts.scales.x.ticks.autoSkip = false;
+    wOpts.plugins.moveOut = {index: res.H < res.N ? res.H : null, color: css("--muted")};
+    const workData = { labels: lblW, datasets: [ ds("457(b)", res.s457, c457, true), ds("Roth IRA", res.sroth, croth, true), ds("Cash savings", res.scash, ccash, true) ] };
+    if (chWork){ chWork.data = workData; chWork.options = wOpts; chWork.update(); }
+    else chWork = new Chart(document.getElementById("c-work"), {type:"line", data:workData, options:wOpts, plugins:[moveOutLine]});
+
+    const fOpts = baseOpts();
+    fOpts.scales.y.stacked = true;
+    const lblF = res.fa.map((_, i) => i === 0 ? "Leave" : "+" + i + " yr");
+    const futData = { labels: lblF, datasets: [ ds("457(b)", res.fa, c457, true), ds("Roth IRA", res.fb, croth, true) ] };
+    if (chFuture){ chFuture.data = futData; chFuture.options = fOpts; chFuture.update(); }
+    else chFuture = new Chart(document.getElementById("c-future"), {type:"line", data:futData, options:fOpts});
+  }
+
+  // ---------- render ----------
+  const $ = id => document.getElementById(id);
+  function render(){
+    syncControls();
+    try { localStorage.setItem(STORE, JSON.stringify(state)); } catch(e) {}
+    const p = state, res = calc(p);
+
+    $("home-hint").textContent = p.home >= res.N ? "You live at home the whole time you work at CCWA." : "You move out after " + months(res.H) + ", then pay rent for " + months(res.N - res.H) + ".";
+    $("k457-hint").textContent = "≈ " + usd(res.k457 / 26) + " per paycheck · " + (res.k457 / p.salary * 100).toFixed(1) + "% of pay";
+    $("k457b-hint").textContent = (p.home >= res.N ? "Not used: you don't move out in this plan. " : "") + "≈ " + usd(res.k457b / 26) + " per paycheck · " + (res.k457b / p.salary * 100).toFixed(1) + "% of pay";
+    $("roth-hint").textContent = "≈ " + usd(p.roth / 12) + " per month";
+
+    $("t-take").textContent = usd(res.take / 12);
+    $("t-take-s").textContent = (res.H < res.N && res.k457b !== res.k457) ? usd(res.takeAway / 12) + " after moving out" : "after 457, taxes, health insurance";
+    $("t-tax-s").textContent = (res.H < res.N && res.k457b !== res.k457) ? usd(res.taxSavedAway) + " a year after moving out" : "per year, federal + Georgia";
+    $("t-home").textContent = usd(res.leftHome);
+    $("t-away").textContent = usd(res.leftAway);
+    $("t-tax").textContent = usd(res.taxSaved);
+    $("tile-home").className = "tile " + (res.leftHome >= 0 ? "ok" : "bad");
+    const movesOut = res.H < res.N;
+    $("tile-away").className = "tile " + (!movesOut ? "neutral" : res.leftAway >= 0 ? "ok" : "bad");
+    $("t-away-s").textContent = movesOut ? "after Roth, rent, bills, spending" : "you don't move out in this plan";
+
+    const w = $("warn"); const msgs = [];
+    if (res.leftHome < 0) msgs.push("Even living at home, you'd spend " + usd(-res.leftHome) + " a month more than you take home. Lower your contributions or spending.");
+    if (movesOut && res.leftAway < 0) msgs.push("After moving out you'd be short " + usd(-res.leftAway) + " a month. Your cash savings cover it for a while, but consider a lower 457(b) amount or cheaper rent.");
+    if (res.lcash < 0) msgs.push("Your cash savings run out before you leave CCWA in this plan.");
+    w.textContent = msgs.join(" "); w.className = "warnbar" + (msgs.length ? " show" : "");
+
+    $("leave-sub").textContent = "after " + months(res.N) + (movesOut ? ", " + months(res.H) + " at home" : ", all at home");
+    $("leave-total").textContent = usd(res.l457 + res.lroth + res.lcash);
+    $("l-457").textContent = usd(res.l457);
+    $("l-roth").textContent = usd(res.lroth);
+    $("l-cash").textContent = usd(res.lcash);
+    $("l-contrib").textContent = usd(res.contrib);
+
+    $("future-sub").textContent = p.after + " years after you leave, at " + p.ret + "% a year";
+    $("future-total").textContent = usd(res.fut);
+    $("f-457").textContent = usd(res.f457);
+    $("f-roth").textContent = usd(res.froth);
+    $("f-real").textContent = usd(res.real);
+    $("f-mult").textContent = res.contrib > 0 ? (res.fut / res.contrib).toFixed(1) + "× what you put in" : "—";
+
+    drawCharts(res);
+  }
+
+  bind();
+  render();
+  // Re-theme charts when the viewer's theme changes
+  const rethem = () => { if (chWork){ chWork.destroy(); chWork = null; } if (chFuture){ chFuture.destroy(); chFuture = null; } render(); };
+  try { new MutationObserver(rethem).observe(document.documentElement, {attributes:true, attributeFilter:["data-theme"]}); } catch(e) {}
+  try { matchMedia("(prefers-color-scheme: dark)").addEventListener("change", rethem); } catch(e) {}
+  if (typeof Chart === "undefined") window.addEventListener("load", () => render());
+})();
+</script>
+</body>
+</html>
