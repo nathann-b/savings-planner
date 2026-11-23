@@ -73,6 +73,8 @@ button.reset:hover{border-color:var(--accent);color:var(--accent)}
 .b .k i{width:10px;height:10px;border-radius:3px;display:inline-block}
 .b .v{font-weight:600;font-size:18px;font-variant-numeric:tabular-nums}
 .chartbox{position:relative;height:280px}
+.keepline{padding:10px 12px;border-radius:10px;border:1px dashed var(--sroth);font-size:14px}
+.keepline strong{font-variant-numeric:tabular-nums}
 .warnbar{display:none;padding:10px 12px;border-radius:8px;border:1px solid var(--warn);color:var(--warn);font-size:13.5px}
 .warnbar.show{display:block}
 .notes{font-size:12.5px;color:var(--muted)}
@@ -200,8 +202,9 @@ button.reset:hover{border-color:var(--accent);color:var(--accent)}
           <div class="b"><div class="k">In today's dollars</div><div class="v" id="f-real"></div></div>
           <div class="b"><div class="k">Growth multiple</div><div class="v" id="f-mult"></div></div>
         </div>
+        <div class="keepline" id="keepline"></div>
         <div class="chartbox"><canvas id="c-future" aria-label="Retirement account growth after leaving"></canvas></div>
-        <div class="sub">This assumes you stop contributing when you leave and never withdraw. Cash savings aren't projected here, since you'll likely spend them on a move, a car or a down payment.</div>
+        <div class="sub">The total above assumes you stop all contributions when you leave and never withdraw. The dashed line shows your Roth IRA if you keep adding the same yearly amount at your next job. Cash savings aren't projected here, since you'll likely spend them on a move, a car or a down payment.</div>
       </section>
 
       <div class="notes">
@@ -261,13 +264,13 @@ button.reset:hover{border-color:var(--accent);color:var(--accent)}
       c = c * (1 + cr) + (home ? leftHomeM - spendHome : leftAwayM - spendAway);
       s457.push(a); sroth.push(b); scash.push(c);
     }
-    const fa = [a], fb = [b];
-    let x = a, y = b;
-    for (let yr = 1; yr <= p.after; yr++){ for (let m = 0; m < 12; m++){ x *= (1 + r); y *= (1 + r); } fa.push(x); fb.push(y); }
+    const fa = [a], fb = [b], fc = [b];
+    let x = a, y = b, z = b;
+    for (let yr = 1; yr <= p.after; yr++){ for (let m = 0; m < 12; m++){ x *= (1 + r); y *= (1 + r); z = z * (1 + r) + p.roth / 12; } fa.push(x); fb.push(y); fc.push(z); }
     const fut = x + y;
     const real = fut / Math.pow(1 + INFL, p.years + p.after);
     return { k457, k457b: pa.k, take, takeAway: pa.take, taxSaved, taxSavedAway: pa.saved, leftHome: leftHomeM - spendHome, leftAway: leftAwayM - spendAway, N, H,
-      l457: a, lroth: b, lcash: c, contrib: (ph.k * H + pa.k * (N - H)) / 12 + p.roth * N / 12, s457, sroth, scash, fa, fb, f457: x, froth: y, fut, real };
+      l457: a, lroth: b, lcash: c, contrib: (ph.k * H + pa.k * (N - H)) / 12 + p.roth * N / 12, s457, sroth, scash, fa, fb, fc, f457: x, froth: y, frothKeep: z, fut, real };
   }
 
   // ---------- controls ----------
@@ -343,7 +346,8 @@ button.reset:hover{border-color:var(--accent);color:var(--accent)}
     const fOpts = baseOpts();
     fOpts.scales.y.stacked = true;
     const lblF = res.fa.map((_, i) => i === 0 ? "Leave" : "+" + i + " yr");
-    const futData = { labels: lblF, datasets: [ ds("457(b)", res.fa, c457, true), ds("Roth IRA", res.fb, croth, true) ] };
+    const keep = { label: "Roth IRA if you keep contributing", data: res.fc, borderColor: croth, backgroundColor: "transparent", fill: false, stack: "keep", borderDash: [6,4], pointRadius: 0, borderWidth: 2, tension: .25 };
+    const futData = { labels: lblF, datasets: [ ds("457(b)", res.fa, c457, true), ds("Roth IRA (stopped)", res.fb, croth, true), keep ] };
     if (chFuture){ chFuture.data = futData; chFuture.options = fOpts; chFuture.update(); }
     else chFuture = new Chart(document.getElementById("c-future"), {type:"line", data:futData, options:fOpts});
   }
@@ -389,6 +393,9 @@ button.reset:hover{border-color:var(--accent);color:var(--accent)}
     $("f-457").textContent = usd(res.f457);
     $("f-roth").textContent = usd(res.froth);
     $("f-real").textContent = usd(res.real);
+    $("keepline").innerHTML = p.roth > 0 && p.after > 0
+      ? "If you keep adding " + usd(p.roth) + " a year to your Roth IRA after you leave, it grows to <strong>" + usd(res.frothKeep) + "</strong> instead of " + usd(res.froth) + ". Your total would be <strong>" + usd(res.f457 + res.frothKeep) + "</strong>."
+      : "Set a Roth IRA amount to see what continued contributions would add.";
     $("f-mult").textContent = res.contrib > 0 ? (res.fut / res.contrib).toFixed(1) + "× what you put in" : "—";
 
     drawCharts(res);
