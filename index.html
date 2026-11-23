@@ -73,8 +73,9 @@ button.reset:hover{border-color:var(--accent);color:var(--accent)}
 .b .k i{width:10px;height:10px;border-radius:3px;display:inline-block}
 .b .v{font-weight:600;font-size:18px;font-variant-numeric:tabular-nums}
 .chartbox{position:relative;height:280px}
-.keepline{padding:10px 12px;border-radius:10px;border:1px dashed var(--sroth);font-size:14px}
-.keepline strong{font-variant-numeric:tabular-nums}
+.breakdown.three{grid-template-columns:repeat(3,1fr)}
+@media (max-width:600px){.breakdown.three{grid-template-columns:repeat(2,1fr)}}
+.b .k i.dash{background:transparent;border:2px dashed var(--sroth);width:12px;height:12px}
 .warnbar{display:none;padding:10px 12px;border-radius:8px;border:1px solid var(--warn);color:var(--warn);font-size:13.5px}
 .warnbar.show{display:block}
 .notes{font-size:12.5px;color:var(--muted)}
@@ -196,15 +197,16 @@ button.reset:hover{border-color:var(--accent);color:var(--accent)}
           <span class="sub" id="future-sub"></span>
         </div>
         <div class="big" id="future-total"></div>
-        <div class="breakdown">
+        <div class="breakdown three">
           <div class="b"><div class="k"><i style="background:var(--s457)"></i>457(b)</div><div class="v" id="f-457"></div></div>
-          <div class="b"><div class="k"><i style="background:var(--sroth)"></i>Roth IRA (tax-free)</div><div class="v" id="f-roth"></div></div>
+          <div class="b"><div class="k"><i style="background:var(--sroth)"></i>Roth IRA, stop adding</div><div class="v" id="f-roth"></div></div>
+          <div class="b"><div class="k"><i class="dash"></i>Roth IRA, keep adding</div><div class="v" id="f-rothkeep"></div></div>
           <div class="b"><div class="k">In today's dollars</div><div class="v" id="f-real"></div></div>
-          <div class="b"><div class="k">Growth multiple</div><div class="v" id="f-mult"></div></div>
+          <div class="b"><div class="k">Growth on what you put in</div><div class="v" id="f-mult"></div></div>
+          <div class="b"><div class="k"><i class="dash"></i>Total if you keep adding to the Roth</div><div class="v" id="f-keeptotal"></div></div>
         </div>
-        <div class="keepline" id="keepline"></div>
         <div class="chartbox"><canvas id="c-future" aria-label="Retirement account growth after leaving"></canvas></div>
-        <div class="sub">The total above assumes you stop all contributions when you leave and never withdraw. The dashed line shows your Roth IRA if you keep adding the same yearly amount at your next job. Cash savings aren't projected here, since you'll likely spend them on a move, a car or a down payment.</div>
+        <div class="sub" id="future-note"></div>
       </section>
 
       <div class="notes">
@@ -254,7 +256,8 @@ button.reset:hover{border-color:var(--accent);color:var(--accent)}
     const spendHome = p.fun, spendAway = p.rent + p.other + p.fun;
     const N = Math.round(p.years * 12), H = Math.min(p.home, N);
     const leftHomeM = (ph.take - p.roth) / 12, leftAwayM = (pa.take - p.roth) / 12;
-    const r = p.ret / 100 / 12, cr = p.cashr / 100 / 12;
+    // Effective monthly rates, so a 7% setting grows money exactly 7% per year
+    const r = Math.pow(1 + p.ret / 100, 1 / 12) - 1, cr = Math.pow(1 + p.cashr / 100, 1 / 12) - 1;
     let a = 0, b = 0, c = 0;
     const s457 = [0], sroth = [0], scash = [0];
     for (let m = 0; m < N; m++){
@@ -346,8 +349,10 @@ button.reset:hover{border-color:var(--accent);color:var(--accent)}
     const fOpts = baseOpts();
     fOpts.scales.y.stacked = true;
     const lblF = res.fa.map((_, i) => i === 0 ? "Leave" : "+" + i + " yr");
-    const keep = { label: "Roth IRA if you keep contributing", data: res.fc, borderColor: croth, backgroundColor: "transparent", fill: false, stack: "keep", borderDash: [6,4], pointRadius: 0, borderWidth: 2, tension: .25 };
-    const futData = { labels: lblF, datasets: [ ds("457(b)", res.fa, c457, true), ds("Roth IRA (stopped)", res.fb, croth, true), keep ] };
+    const keepTotal = res.fa.map((v, i) => v + res.fc[i]);
+    const keep = { label: "Total if you keep adding to the Roth", data: keepTotal, borderColor: croth, backgroundColor: "transparent", fill: false, stack: "keep", borderDash: [6,4], pointRadius: 0, borderWidth: 2, tension: .25 };
+    const futData = { labels: lblF, datasets: [ ds("457(b)", res.fa, c457, true), ds("Roth IRA, stop adding", res.fb, croth, true), keep ] };
+    fOpts.plugins.tooltip.callbacks.footer = items => { const i = items[0].dataIndex; return "Total if you stop adding: " + usd(res.fa[i] + res.fb[i]); };
     if (chFuture){ chFuture.data = futData; chFuture.options = fOpts; chFuture.update(); }
     else chFuture = new Chart(document.getElementById("c-future"), {type:"line", data:futData, options:fOpts});
   }
@@ -393,10 +398,10 @@ button.reset:hover{border-color:var(--accent);color:var(--accent)}
     $("f-457").textContent = usd(res.f457);
     $("f-roth").textContent = usd(res.froth);
     $("f-real").textContent = usd(res.real);
-    $("keepline").innerHTML = p.roth > 0 && p.after > 0
-      ? "If you keep adding " + usd(p.roth) + " a year to your Roth IRA after you leave, it grows to <strong>" + usd(res.frothKeep) + "</strong> instead of " + usd(res.froth) + ". Your total would be <strong>" + usd(res.f457 + res.frothKeep) + "</strong>."
-      : "Set a Roth IRA amount to see what continued contributions would add.";
-    $("f-mult").textContent = res.contrib > 0 ? (res.fut / res.contrib).toFixed(1) + "× what you put in" : "—";
+    $("f-rothkeep").textContent = usd(res.frothKeep);
+    $("f-keeptotal").textContent = usd(res.f457 + res.frothKeep);
+    $("future-note").textContent = "The big total assumes you stop all contributions when you leave and never withdraw. \"Keep adding\" assumes you put " + usd(p.roth) + " a year into the Roth IRA for all " + p.after + " years; the dashed line on the chart shows that total. Cash savings aren't projected here, since you'll likely spend them on a move, a car or a down payment.";
+    $("f-mult").textContent = res.contrib > 0 ? (res.fut / res.contrib).toFixed(1) + "×" : "—";
 
     drawCharts(res);
   }
